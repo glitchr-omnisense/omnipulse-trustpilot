@@ -1,18 +1,23 @@
-# omnireview/trustpilot
+# omnipulse/trustpilot
 
-**Trustpilot** for [omnisense/omnireview](https://github.com/glitchr-omnisense/omnireview): a business
+Formerly `omnireview/trustpilot` (moved on 2026-11-10, when omnireview and omnifund merged into
+omnipulse: `Omnireview\Trustpilot\` is now `Omnipulse\Trustpilot\`, `TrustpilotGateway` is
+`TrustpilotProvider`, `TrustpilotGatewayFactory` is `TrustpilotFactory`; this package replaces the
+former name).
+
+**Trustpilot** for [omnisense/omnipulse](https://github.com/glitchr-omnisense/omnipulse): a business
 unit's TrustScore, its number of reviews, its reviews and the links to its profile and to write
 one; with a business user's access, replying to a review and inviting a customer to write one.
 
 ```php
-use Omnireview\Trustpilot\TrustpilotGatewayFactory;
+use Omnipulse\Trustpilot\TrustpilotFactory;
 
-$gateway = (new TrustpilotGatewayFactory($httpClient))->create(['api_key' => getenv('TRUSTPILOT_API_KEY')]);
+$provider = (new TrustpilotFactory($httpClient))->create(['api_key' => getenv('TRUSTPILOT_API_KEY')]);
 
-$unit = $gateway->find('www.maison-erable.example');  // once: keep its ID
-$gateway->rating($unit);                              // the TrustScore, the number of reviews, the profile
-$gateway->reviews($unit, 10);
-$gateway->writeUrl($unit);                            // the profile's evaluate link
+$unit = $provider->find('www.maison-erable.example');  // once: keep its ID
+$provider->rating($unit);                              // the TrustScore, the number of reviews, the profile
+$provider->reviews($unit, 10);
+$provider->writeUrl($unit);                            // the profile's evaluate link
 ```
 
 Written from Trustpilot's developer documentation, read on 2026-10-08. **Not verified in real:

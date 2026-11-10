@@ -1,9 +1,9 @@
-# omnireview/trustpilot
+# omnipulse/trustpilot
 
-Trustpilot for [omnisense/omnireview](https://github.com/glitchr-omnisense/omnireview): a business
+Trustpilot for [omnisense/omnipulse](https://github.com/glitchr-omnisense/omnipulse): a business
 unit's TrustScore, its number of reviews, its reviews and the links to its profile and to write
 one; with a business user's access, replying to a review and inviting a customer to write one.
-The gateway calls three Trustpilot hosts:
+The provider calls three Trustpilot hosts:
 
 | Operation | API | Request |
 |---|---|---|
@@ -15,17 +15,17 @@ The gateway calls three Trustpilot hosts:
 | invite | Invitations API | `POST https://invitations-api.trustpilot.com/v1/private/business-units/{id}/email-invitations`, Bearer, `x-business-user-id` |
 | token | OAuth | `POST https://api.trustpilot.com/v1/oauth/oauth-business-users-for-applications/accesstoken`, `grant_type=client_credentials` |
 
-The base addresses are the constants `TrustpilotGateway::API`, `DATA` and `INVITATIONS`. Trustpilot
+The base addresses are the constants `TrustpilotProvider::API`, `DATA` and `INVITATIONS`. Trustpilot
 has no sandbox for these APIs.
 
 ## Installation
 
 ```sh
-composer require omnireview/trustpilot
+composer require omnipulse/trustpilot
 ```
 
-Requires PHP 8.2, `omnisense/omnireview` (1.x) and `symfony/http-client` (6.4, 7 or 8). In a
-Symfony application with `OmnireviewBundle`, the factory is registered as soon as the package is
+Requires PHP 8.2, `omnisense/omnipulse` (1.x) and `symfony/http-client` (6.4, 7 or 8). In a
+Symfony application with `OmnipulseBundle`, the factory is registered as soon as the package is
 installed.
 
 ## Credentials
@@ -63,8 +63,8 @@ installed.
 | `InviteInterface` | only with `api_secret` and `business_user_id` |
 | `WriteUrlInterface` | yes |
 
-`capabilities()->gives()`: `rating, reviews, write-url`, and `reply, invite` with the business
-user. `find(string $domain): Place` is the gateway's own method, outside the contract.
+`capabilities()->contracts()`: `rating, reviews, writeUrl`, and `reply, invite` with the business
+user. `find(string $domain): Place` is the provider's own method, outside the contract.
 
 ## Behaviour
 
@@ -92,7 +92,7 @@ text}`. The `Reply` is the text sent, dated now (Trustpilot's answer is not read
 key left out when empty. It returns the invitation's `id`, or `null`.
 
 **Token.** Asked on the first reply or invitation: HTTP basic `api_key:api_secret`,
-`grant_type=client_credentials`; kept in the gateway until 60 seconds before it expires
+`grant_type=client_credentials`; kept in the provider until 60 seconds before it expires
 (`expires_in`, 3600 when Trustpilot does not say), then asked again (no refresh token).
 
 **Every call** goes through `Answer::send()`, with a 10-second timeout.
@@ -120,12 +120,12 @@ forbids inviting only the customers likely to be pleased: invite all alike.
 
 require __DIR__.'/vendor/autoload.php';
 
-use Omnireview\Model\Invitation;
-use Omnireview\Model\Place;
-use Omnireview\Trustpilot\TrustpilotGatewayFactory;
+use Omnipulse\Model\Invitation;
+use Omnipulse\Model\Place;
+use Omnipulse\Trustpilot\TrustpilotFactory;
 use Symfony\Component\HttpClient\HttpClient;
 
-$trustpilot = (new TrustpilotGatewayFactory(HttpClient::create()))->create([
+$trustpilot = (new TrustpilotFactory(HttpClient::create()))->create([
     'api_key' => getenv('TRUSTPILOT_API_KEY'),
     'api_secret' => getenv('TRUSTPILOT_API_SECRET'),
     'business_user_id' => getenv('TRUSTPILOT_BUSINESS_USER_ID'),
@@ -150,8 +150,8 @@ echo $trustpilot->writeUrl($unit), ' ', $id, "\n";
 Not run live (no key). In Symfony:
 
 ```yaml
-omnireview:
-    gateways:
+omnipulse:
+    providers:
         trustpilot:
             factory: trustpilot
             options:
@@ -171,11 +171,11 @@ omnireview:
 | a body that is not JSON | `ProviderException` | - |
 | no business unit for the domain, no `evaluateUrl` | `ProviderException` | - |
 | `reply()`, `invite()` without the business user | `NotSupportedException`, before any call | - |
-| no `api_key` | `InvalidConfigException`, when the gateway is built | - |
+| no `api_key` | `InvalidConfigException`, when the provider is built | - |
 
 ## Verified, and not
 
-Tested offline (`Tests/TrustpilotGatewayTest.php`, on `MockHttpClient`): `find()` by domain, the
+Tested offline (`Tests/TrustpilotProviderTest.php`, on `MockHttpClient`): `find()` by domain, the
 TrustScore and count from Data Solutions with the `apikey` header, the profile and write links,
 the reviews' query and their public URL and reply; the token's Basic header, the reply's body, the
 invitation's URL, `x-business-user-id` header and body, the capabilities with a business user;

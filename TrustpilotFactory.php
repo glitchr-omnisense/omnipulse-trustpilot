@@ -1,10 +1,10 @@
 <?php
 
-namespace Omnireview\Trustpilot;
+namespace Omnipulse\Trustpilot;
 
-use Omnireview\Config;
-use Omnireview\GatewayFactory;
-use Omnireview\GatewayInterface;
+use Omnipulse\Config;
+use Omnipulse\ProviderFactory;
+use Omnipulse\ProviderInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -22,7 +22,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *     sender_name: ~
  *     sender_email: ~
  */
-final class TrustpilotGatewayFactory extends GatewayFactory
+final class TrustpilotFactory extends ProviderFactory
 {
     public function __construct(private readonly ?HttpClientInterface $http = null)
     {
@@ -31,9 +31,9 @@ final class TrustpilotGatewayFactory extends GatewayFactory
     protected function populate(Config $c): void
     {
         $c->defaults([
-            'omnireview.factory_name' => 'trustpilot',
-            'omnireview.factory_title' => 'Trustpilot',
-            'omnireview.required_options' => ['api_key'],
+            'omnipulse.factory_name' => 'trustpilot',
+            'omnipulse.factory_title' => 'Trustpilot',
+            'omnipulse.required_options' => ['api_key'],
             'locale' => 'fr-FR',
             'api_secret' => null,
             'business_user_id' => null,
@@ -44,8 +44,8 @@ final class TrustpilotGatewayFactory extends GatewayFactory
         ]);
     }
 
-    protected function build(Config $c): GatewayInterface
+    protected function build(Config $c): ProviderInterface
     {
-        return new TrustpilotGateway($this->http ?? HttpClient::create(), (string) $c['api_key'], $c->string('api_secret'), $c->string('business_user_id'), $c->string('locale') ?? 'fr-FR', $c->string('template_id'), $c->string('reply_to'), $c->string('sender_name'), $c->string('sender_email'));
+        return new TrustpilotProvider($this->http ?? HttpClient::create(), (string) $c->string('api_key'), $c->string('api_secret'), $c->string('business_user_id'), $c->string('locale') ?? 'fr-FR', $c->string('template_id'), $c->string('reply_to'), $c->string('sender_name'), $c->string('sender_email'));
     }
 }

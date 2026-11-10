@@ -1,23 +1,24 @@
 <?php
 
-namespace Omnireview\Trustpilot;
+namespace Omnipulse\Trustpilot;
 
-use Omnireview\Exception\InvalidKeyException;
-use Omnireview\Exception\NotSupportedException;
-use Omnireview\Exception\ProviderException;
-use Omnireview\Http\Answer;
-use Omnireview\InviteInterface;
-use Omnireview\Model\Capabilities;
-use Omnireview\Model\Invitation;
-use Omnireview\Model\Place;
-use Omnireview\Model\Rating;
-use Omnireview\Model\Reply;
-use Omnireview\Model\Review;
-use Omnireview\Model\Terms;
-use Omnireview\RatingInterface;
-use Omnireview\ReplyInterface;
-use Omnireview\ReviewsInterface;
-use Omnireview\WriteUrlInterface;
+use Omnipulse\Capabilities;
+use Omnipulse\Exception\InvalidKeyException;
+use Omnipulse\Exception\NotSupportedException;
+use Omnipulse\Exception\ProviderException;
+use Omnipulse\Http\Answer;
+use Omnipulse\InviteInterface;
+use Omnipulse\Model\Invitation;
+use Omnipulse\Model\Place;
+use Omnipulse\Model\Rating;
+use Omnipulse\Model\Reply;
+use Omnipulse\Model\Review;
+use Omnipulse\Model\Terms;
+use Omnipulse\RatingInterface;
+use Omnipulse\ReplyInterface;
+use Omnipulse\ReviewsInterface;
+use Omnipulse\Support\Data;
+use Omnipulse\WriteUrlInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -26,7 +27,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * business user's OAuth token: client credentials, the business user's id).
  * A Place is a business unit ID - found once by the site's domain, and kept.
  */
-final class TrustpilotGateway implements RatingInterface, ReviewsInterface, ReplyInterface, InviteInterface, WriteUrlInterface
+final class TrustpilotProvider implements RatingInterface, ReviewsInterface, ReplyInterface, InviteInterface, WriteUrlInterface
 {
     public const API = 'https://api.trustpilot.com/v1/';
     public const DATA = 'https://datasolutions.trustpilot.com/v1/';
@@ -87,34 +88,34 @@ final class TrustpilotGateway implements RatingInterface, ReviewsInterface, Repl
     {
         $data = $this->call('GET', self::API.'business-units/find', ['query' => ['name' => $domain], 'headers' => ['apikey' => $this->apiKey]]);
 
-        return new Place((string) ($data['id'] ?? throw new ProviderException('trustpilot', \sprintf('No business unit for "%s".', $domain))), $data['displayName'] ?? $domain);
+        return new Place(self::str($data, 'id') ?? throw ProviderException::from('trustpilot', \sprintf('No business unit for "%s".', $domain)), self::str($data, 'displayName') ?? $domain);
     }
 
     public function rating(Place $place): Rating
     {
         $data = $this->call('GET', self::DATA.'business-units/'.rawurlencode($place->id), ['headers' => ['apikey' => $this->apiKey]]);
-        $count = $data['numberOfReviews'] ?? 0;
+        $count = \is_array($data->raw('numberOfReviews')) ? $data->int('numberOfReviews.total') : $data->int('numberOfReviews');
 
-        return new Rating('trustpilot', (float) ($data['score']['trustScore'] ?? 0), (int) (\is_array($count) ? ($count['total'] ?? 0) : $count), url: $this->links($place)['profileUrl'] ?? null);
+        return new Rating('trustpilot', $data->float('score.trustScore') ?? 0.0, $count ?? 0, url: self::str($this->links($place), 'profileUrl'));
     }
 
     public function reviews(Place $place, int $limit = 5, ?string $language = null): array
     {
         $data = $this->call('GET', self::API.'business-units/'.rawurlencode($place->id).'/reviews', ['headers' => ['apikey' => $this->apiKey], 'query' => array_filter(['perPage' => max(1, min(100, $limit)), 'language' => $language, 'orderBy' => 'createdat.desc'])]);
 
-        return array_slice(array_map(static fn (array $r) => new Review(
+        return \array_slice(array_map(static fn (Data $r) => new Review(
             'trustpilot',
-            (string) ($r['id'] ?? ''),
-            (float) ($r['stars'] ?? 0),
-            isset($r['text']) ? (string) $r['text'] : null,
-            isset($r['title']) ? (string) $r['title'] : null,
-            $r['language'] ?? null,
-            $r['consumer']['displayName'] ?? null,
-            publishedAt: self::date($r['createdAt'] ?? null),
+            self::str($r, 'id') ?? '',
+            $r->float('stars') ?? 0.0,
+            self::str($r, 'text'),
+            self::str($r, 'title'),
+            self::str($r, 'language'),
+            self::str($r, 'consumer.displayName'),
+            publishedAt: self::date($r->raw('createdAt')),
             // The review's public page: its "links" point to the API, not to a page a visitor can open.
-            url: isset($r['id']) ? 'https://www.trustpilot.com/reviews/'.rawurlencode((string) $r['id']) : null,
-            reply: isset($r['companyReply']['text']) ? new Reply((string) $r['companyReply']['text'], self::date($r['companyReply']['createdAt'] ?? null)) : null,
-        ), (array) ($data['reviews'] ?? [])), 0, $limit);
+            url: null !== ($id = self::str($r, 'id')) ? 'https://www.trustpilot.com/reviews/'.rawurlencode($id) : null,
+            reply: null !== ($reply = self::str($r, 'companyReply.text')) ? new Reply($reply, self::date($r->raw('companyReply.createdAt'))) : null,
+        ), array_values(array_filter($data->list('reviews'), static fn (Data $r): bool => [] !== $r->values))), 0, $limit);
     }
 
     public function reply(Place $place, Review $review, string $text): Reply
@@ -147,16 +148,16 @@ final class TrustpilotGateway implements RatingInterface, ReviewsInterface, Repl
             ], static fn ($v) => null !== $v && [] !== $v),
         ]);
 
-        return isset($data['id']) ? (string) $data['id'] : null;
+        return self::str($data, 'id');
     }
 
     public function writeUrl(Place $place): string
     {
-        return (string) ($this->links($place)['evaluateUrl'] ?? throw new ProviderException('trustpilot', 'The business unit gives no evaluateUrl.'));
+        return self::str($this->links($place), 'evaluateUrl') ?? throw ProviderException::from('trustpilot', 'The business unit gives no evaluateUrl.');
     }
 
-    /** @return array<string, mixed> profileUrl, evaluateUrl, evaluateEmbedUrl */
-    private function links(Place $place): array
+    /** profileUrl, evaluateUrl, evaluateEmbedUrl */
+    private function links(Place $place): Data
     {
         return $this->call('GET', self::API.'business-units/'.rawurlencode($place->id).'/web-links', ['headers' => ['apikey' => $this->apiKey], 'query' => ['locale' => $this->locale]]);
     }
@@ -175,33 +176,39 @@ final class TrustpilotGateway implements RatingInterface, ReviewsInterface, Repl
             return $this->token;
         }
         $answer = Answer::send($this->http, 'trustpilot', 'POST', self::API.'oauth/oauth-business-users-for-applications/accesstoken', ['headers' => ['Authorization' => 'Basic '.base64_encode($this->apiKey.':'.$this->apiSecret)], 'body' => ['grant_type' => 'client_credentials']]);
-        $data = json_decode($answer->body, true);
-        if ($answer->status >= 400 || !isset($data['access_token'])) {
-            throw new InvalidKeyException('trustpilot', 'The API key and secret were refused for a token.', (string) $answer->status);
+        $data = Data::of(json_decode($answer->body, true));
+        $token = self::str($data, 'access_token');
+        if ($answer->status >= 400 || null === $token) {
+            throw InvalidKeyException::from('trustpilot', 'The API key and secret were refused for a token.', (string) $answer->status);
         }
-        $this->token = (string) $data['access_token'];
-        $this->expires = time() + max(0, (int) ($data['expires_in'] ?? 3600) - 60);
+        $this->token = $token;
+        $this->expires = time() + max(0, ($data->int('expires_in') ?? 3600) - 60);
 
         return $this->token;
     }
 
-    /**
-     * @param array<string, mixed> $options
-     *
-     * @return array<string, mixed>
-     */
-    private function call(string $method, string $url, array $options): array
+    /** @param array<string, mixed> $options */
+    private function call(string $method, string $url, array $options): Data
     {
         $answer = Answer::send($this->http, 'trustpilot', $method, $url, $options);
         if (\in_array($answer->status, [401, 403], true)) {
-            throw new InvalidKeyException('trustpilot', \sprintf('Refused (HTTP %d): %s', $answer->status, mb_substr(trim($answer->body), 0, 200)), (string) $answer->status);
+            throw InvalidKeyException::from('trustpilot', \sprintf('Refused (HTTP %d): %s', $answer->status, mb_substr(trim($answer->body), 0, 200)), (string) $answer->status);
         }
         if ($answer->status >= 400) {
             $error = json_decode($answer->body, true);
-            throw new ProviderException('trustpilot', \sprintf('%s %s: HTTP %d, %s', $method, parse_url($url, \PHP_URL_PATH), $answer->status, \is_array($error) ? ($error['message'] ?? $error['details'] ?? json_encode($error)) : mb_substr(trim($answer->body), 0, 200)), (string) $answer->status);
+            $said = \is_array($error) ? (self::str(new Data($error), 'message') ?? self::str(new Data($error), 'details') ?? (string) json_encode($error)) : mb_substr(trim($answer->body), 0, 200);
+            throw ProviderException::from('trustpilot', \sprintf('%s %s: HTTP %d, %s', $method, parse_url($url, \PHP_URL_PATH), $answer->status, $said), (string) $answer->status);
         }
 
-        return '' === trim($answer->body) ? [] : $answer->json();
+        return '' === trim($answer->body) ? new Data() : new Data($answer->json());
+    }
+
+    /** A value of the answer as it is, when it is a string or a number. */
+    private static function str(Data $data, string $path): ?string
+    {
+        $value = $data->raw($path);
+
+        return \is_scalar($value) ? (string) $value : null;
     }
 
     private static function date(mixed $value): ?\DateTimeImmutable
