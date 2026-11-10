@@ -1,0 +1,55 @@
+{
+    "$schema": "https://github.com/glitchr-omnisense/contracts/blob/1.x/resources/usage-policy.schema.json",
+    "provider": "trustpilot",
+    "rateLimits": [
+        {
+            "max": 833,
+            "window": "minute",
+            "every": 5,
+            "scope": "application",
+            "operations": [],
+            "note": "\"Trustpilot recommends that you don't exceed 833 calls per 5 minutes\": a recommendation, written as a limit; per application, the stricter reading (the page does not say per key)."
+        },
+        {
+            "max": 10000,
+            "window": "hour",
+            "scope": "application",
+            "operations": [],
+            "note": "\"... or 10K calls per hour\"."
+        }
+    ],
+    "rights": {
+        "commercial": "unknown",
+        "openSourceRequired": null,
+        "caching": {
+            "permission": "allowed",
+            "maxTtl": 86400
+        },
+        "storage": "unknown",
+        "redistribution": "unknown",
+        "attribution": {
+            "required": true,
+            "text": "Trustpilot",
+            "url": "https://www.trustpilot.com/",
+            "where": [
+                "display"
+            ]
+        },
+        "licence": null
+    },
+    "requirements": {
+        "key": true,
+        "userAgent": {
+            "required": false,
+            "pattern": null
+        }
+    },
+    "provenance": {
+        "terms": "https://legal.trustpilot.com/",
+        "policy": "https://developers.trustpilot.com/rate-limiting",
+        "verifiedAt": "2026-11-10",
+        "declaredBy": "maintainer",
+        "contact": null,
+        "notes": "Rate limiting: 833 calls per 5 minutes, 10,000 per hour (recommended ceilings). Content Refresh Guidelines (developers.trustpilot.com/ds-caching-best-practices/): what is shown refreshed every 24 hours at the latest, the business unit ID kept (caching allowed up to 86,400 s, as Terms::cacheFor). developers.trustpilot.com did not answer from this workspace on 2026-11-10 (name not resolved by the fetch tool): the figures were checked against the page's indexed text that day, the caching rule is the one the package declared before. Commercial use, storage and redistribution are the API agreement's: unknown. An API key; replying and inviting take the secret and a business user."
+    }
+}

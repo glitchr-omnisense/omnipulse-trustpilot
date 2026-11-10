@@ -19,6 +19,9 @@ use Omnipulse\ReplyInterface;
 use Omnipulse\ReviewsInterface;
 use Omnipulse\Support\Data;
 use Omnipulse\WriteUrlInterface;
+use Omnisense\Contracts\Policy\Backoff;
+use Omnisense\Contracts\Policy\DeclaresUsagePolicyInterface;
+use Omnisense\Contracts\Policy\UsagePolicy;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -27,8 +30,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * business user's OAuth token: client credentials, the business user's id).
  * A Place is a business unit ID - found once by the site's domain, and kept.
  */
-final class TrustpilotProvider implements RatingInterface, ReviewsInterface, ReplyInterface, InviteInterface, WriteUrlInterface
+final class TrustpilotProvider implements RatingInterface, ReviewsInterface, ReplyInterface, InviteInterface, WriteUrlInterface, DeclaresUsagePolicyInterface
 {
+    /** Trustpilot's usage policy, as its terms read on the day it says (provenance.verifiedAt). */
+    public const POLICY = __DIR__.'/policy.json';
+
+    private static ?UsagePolicy $policy = null;
+
     public const API = 'https://api.trustpilot.com/v1/';
     public const DATA = 'https://datasolutions.trustpilot.com/v1/';
     public const INVITATIONS = 'https://invitations-api.trustpilot.com/v1/';
@@ -46,6 +54,7 @@ final class TrustpilotProvider implements RatingInterface, ReviewsInterface, Rep
         private readonly ?string $replyTo = null,
         private readonly ?string $senderName = null,
         private readonly ?string $senderEmail = null,
+        private readonly ?Backoff $backoff = null,
     ) {
     }
 
@@ -59,11 +68,16 @@ final class TrustpilotProvider implements RatingInterface, ReviewsInterface, Rep
         return 'Trustpilot';
     }
 
+    public function usagePolicy(): UsagePolicy
+    {
+        return self::$policy ??= UsagePolicy::fromFile(self::POLICY);
+    }
+
     public function capabilities(): Capabilities
     {
         $business = null !== $this->apiSecret && null !== $this->businessUserId;
 
-        return new Capabilities(rating: true, reviews: true, reply: $business, invite: $business, writeUrl: true);
+        return new Capabilities(rating: true, reviews: true, reply: $business, invite: $business, writeUrl: true, policy: $this->usagePolicy());
     }
 
     public function terms(): Terms
@@ -190,7 +204,7 @@ final class TrustpilotProvider implements RatingInterface, ReviewsInterface, Rep
     /** @param array<string, mixed> $options */
     private function call(string $method, string $url, array $options): Data
     {
-        $answer = Answer::send($this->http, 'trustpilot', $method, $url, $options);
+        $answer = Answer::send($this->http, 'trustpilot', $method, $url, $options, $this->backoff);
         if (\in_array($answer->status, [401, 403], true)) {
             throw InvalidKeyException::from('trustpilot', \sprintf('Refused (HTTP %d): %s', $answer->status, mb_substr(trim($answer->body), 0, 200)), (string) $answer->status);
         }

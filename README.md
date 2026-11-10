@@ -25,6 +25,15 @@ no key.**
 
 [Documentation](docs/index.md): the options, the calls, Trustpilot's terms, what was verified.
 
+## Usage policy
+
+Trustpilot's usage policy is declared as data in [`policy.json`](policy.json) (omnisense/contracts'
+schema, named in `composer.json`'s `extra.omnisense.policy`), its terms read on
+2026-11-10 (https://developers.trustpilot.com/rate-limiting): 833 calls per 5 minutes and 10,000 an hour (Trustpilot's recommended ceilings); what is shown kept 24 hours at most; "Trustpilot" credited on display. omnipulse's registry enforces it - a call over a
+limit is never made, a 429 and its `Retry-After` hold every next call
+(`UsageLimitReachedException`) - and a site may tighten it, never loosen it
+(omnisense/omnipulse's docs/policies.md).
+
 ## Responsibility
 
 This package is an independent, unofficial client: it is not affiliated with, endorsed by or
