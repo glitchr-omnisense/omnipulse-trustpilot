@@ -21,6 +21,7 @@ use Omnipulse\Support\Data;
 use Omnipulse\WriteUrlInterface;
 use Omnisense\Contracts\Policy\Backoff;
 use Omnisense\Contracts\Policy\DeclaresUsagePolicyInterface;
+use Omnisense\Contracts\Policy\PolicyGuard;
 use Omnisense\Contracts\Policy\UsagePolicy;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -55,6 +56,7 @@ final class TrustpilotProvider implements RatingInterface, ReviewsInterface, Rep
         private readonly ?string $senderName = null,
         private readonly ?string $senderEmail = null,
         private readonly ?Backoff $backoff = null,
+        private readonly ?PolicyGuard $tokens = null,
     ) {
     }
 
@@ -189,7 +191,9 @@ final class TrustpilotProvider implements RatingInterface, ReviewsInterface, Rep
         if (null !== $this->token && time() < $this->expires) {
             return $this->token;
         }
-        $answer = Answer::send($this->http, 'trustpilot', 'POST', self::API.'oauth/oauth-business-users-for-applications/accesstoken', ['headers' => ['Authorization' => 'Basic '.base64_encode($this->apiKey.':'.$this->apiSecret)], 'body' => ['grant_type' => 'client_credentials']]);
+        // Counted under "token" by the provider's guard (Config::guard()), its waits honoured before.
+        $ask = fn (): Answer => Answer::send($this->http, 'trustpilot', 'POST', self::API.'oauth/oauth-business-users-for-applications/accesstoken', ['headers' => ['Authorization' => 'Basic '.base64_encode($this->apiKey.':'.$this->apiSecret)], 'body' => ['grant_type' => 'client_credentials']]);
+        $answer = null === $this->tokens ? $ask() : $this->tokens->call('token', $ask);
         $data = Data::of(json_decode($answer->body, true));
         $token = self::str($data, 'access_token');
         if ($answer->status >= 400 || null === $token) {

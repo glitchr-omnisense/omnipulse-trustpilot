@@ -8,6 +8,7 @@ use Omnipulse\Model\Place;
 use Omnipulse\Model\Review;
 use Omnipulse\Trustpilot\TrustpilotProvider;
 use Omnipulse\Trustpilot\TrustpilotFactory;
+use Omnipulse\Exception\UsageLimitReachedException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -102,4 +103,18 @@ final class TrustpilotProviderTest extends TestCase
     {
         return \is_string($options['body'] ?? null) ? $options['body'] : '';
     }
+
+    public function testTheTokenRequestIsCountedUnderTokenAndNeverSentOverASitesLimit(): void
+    {
+        $provider = $this->provider(['token'], ['api_secret' => 'tp-secret', 'business_user_id' => 'bu-1', 'policy' => ['rateLimits' => [['max' => 0, 'window' => 'day', 'operations' => ['token']]]]]);
+
+        try {
+            $provider->reply(new Place(self::UNIT), new Review('trustpilot', '507f191e810c19729de860ea', 5), 'Merci !');
+            self::fail('The token request went out over the site\'s limit.');
+        } catch (UsageLimitReachedException $e) {
+            self::assertSame('0/day/application/token', $e->limit?->id());
+        }
+        self::assertSame([], $this->calls, 'nothing was sent');
+    }
+
 }

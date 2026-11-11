@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+- Token requests counted: the business user's client-credentials request goes through the provider's guard, checked before it is sent (a
+  site's limit naming `token`, the provider's waits) and counted after, in the registry's limiter.
+  `TrustpilotFactory` gives the provider its guard (`Config::guard()`, the constructor's last argument `tokens`): each token request is counted under `token`, and under Trustpilot's 833 calls per 5 minutes and 10,000 an hour, which count every call. Needs omnisense/contracts 16c8da1 or later (`Config::guard()`; 1568f2c, what the sites'
+  vendors hold, has it). Tests/TrustpilotProviderTest: a site's limit of 0 tokens a day, the token request never sent.
+
 ### Added
 - Trustpilot's usage policy declared as data: `policy.json` (omnisense/contracts' schema), its terms
   read on 2026-11-10, named in `composer.json` (`extra.omnisense.policy`, and

@@ -5,6 +5,7 @@ namespace Omnipulse\Trustpilot;
 use Omnipulse\Config;
 use Omnipulse\ProviderFactory;
 use Omnipulse\ProviderInterface;
+use Omnisense\Contracts\Policy\UsagePolicy;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -46,6 +47,6 @@ final class TrustpilotFactory extends ProviderFactory
 
     protected function build(Config $c): ProviderInterface
     {
-        return new TrustpilotProvider($this->http ?? HttpClient::create(), (string) $c->string('api_key'), $c->string('api_secret'), $c->string('business_user_id'), $c->string('locale') ?? 'fr-FR', $c->string('template_id'), $c->string('reply_to'), $c->string('sender_name'), $c->string('sender_email'), $c->backoff());
+        return new TrustpilotProvider($this->http ?? HttpClient::create(), (string) $c->string('api_key'), $c->string('api_secret'), $c->string('business_user_id'), $c->string('locale') ?? 'fr-FR', $c->string('template_id'), $c->string('reply_to'), $c->string('sender_name'), $c->string('sender_email'), $c->backoff(), $c->guard(UsagePolicy::fromFile(TrustpilotProvider::POLICY)));
     }
 }
