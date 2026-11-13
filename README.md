@@ -9,6 +9,39 @@ former name).
 unit's TrustScore, its number of reviews, its reviews and the links to its profile and to write
 one; with a business user's access, replying to a review and inviting a customer to write one.
 
+## Install and a first call
+
+```sh
+composer require omnipulse/trustpilot
+```
+
+No account for this first call: Trustpilot's answers is recorded
+(`Omnipulse\Testing\RecordedHttpClient` answers in place of the API), so nothing leaves the process.
+A real call needs a Trustpilot API key (its developer portal); replies and invitations need the
+business's own account besides (an API secret and a login).
+
+```php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
+use Omnipulse\Model\Place;
+use Omnipulse\Trustpilot\TrustpilotFactory;
+use Omnipulse\Testing\RecordedHttpClient;
+
+// Trustpilot's answers, recorded: nothing sent. HttpClient::create() (symfony/http-client) for a real call.
+$http = RecordedHttpClient::routes([
+    'GET /web-links' => '{"locale": "fr-FR", "profileUrl": "https://fr.trustpilot.com/review/www.maison-erable.example", "evaluateUrl": "https://fr.trustpilot.com/evaluate/www.maison-erable.example"}',
+    'GET /46d6a890000064000500e0c3' => '{"id": "46d6a890000064000500e0c3", "displayName": "Maison Érable", "score": {"stars": 4.5, "trustScore": 4.4}, "numberOfReviews": {"total": 469}}',
+]);
+$trustpilot = (new TrustpilotFactory($http))->create(['api_key' => 'recorded']);
+
+$rating = $trustpilot->rating(new Place('46d6a890000064000500e0c3'));
+echo $rating->value, ' from ', $rating->count, ' reviews, ', $rating->url, "\n";   // 4.4 from 469 reviews, https://fr.trustpilot.com/review/...
+```
+
+With your credentials, through the family's registry:
+
 ```php
 use Omnipulse\Trustpilot\TrustpilotFactory;
 

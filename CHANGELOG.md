@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-13
+
+The first stable version. It requires `omnisense/contracts` `^1.0`, `omnisense/omnipulse` `^1.0` with no stability flag, so `composer require omnipulse/trustpilot` installs it in a project with Composer's default minimum-stability; the 1.x series follows semantic versioning. A tag `vX.Y.Z` is released by `.github/workflows/release.yml` once the package's CI passes on it.
+
 ### Changed
 - Token requests counted: the business user's client-credentials request goes through the provider's guard, checked before it is sent (a
   site's limit naming `token`, the provider's waits) and counted after, in the registry's limiter.
